@@ -1,0 +1,27 @@
+import fs from 'node:fs';
+
+const asarPath = 'D:\\DeepSeek Harness\\resources\\app.asar';
+const fd = fs.openSync(asarPath, 'r');
+const head = Buffer.alloc(16);
+fs.readSync(fd, head, 0, 16, 0);
+console.log('head0', head.readUInt32LE(0), 'head4', head.readUInt32LE(4));
+const pickleSize = head.readUInt32LE(4);
+const headerBuf = Buffer.alloc(16 + pickleSize);
+fs.readSync(fd, headerBuf, 0, headerBuf.length, 8);
+console.log('pickleSize', pickleSize, 'firstU32', headerBuf.readUInt32LE(0), 'secondU32', headerBuf.readUInt32LE(4));
+const jsonSize = headerBuf.readUInt32LE(4);
+const jsonStr = headerBuf.toString('utf8', 8, 8 + jsonSize);
+console.log('jsonSize', jsonSize, 'jsonStart', JSON.stringify(jsonStr.slice(0, 120)));
+const header = JSON.parse(jsonStr);
+console.log('top keys', Object.keys(header));
+console.log('top files', Object.keys(header.files).slice(0, 12));
+const dsh = header.files['dsh'];
+console.log('dsh keys', Object.keys(dsh));
+const pj = dsh.files['package.json'];
+console.log('dsh/package.json node', JSON.stringify({ ...pj, integrity: undefined }));
+const baseOffset = 8 + pickleSize;
+const off = baseOffset + parseInt(pj.offset, 10);
+console.log('baseOffset', baseOffset, 'off', off, 'size', pj.size);
+const buf = Buffer.alloc(Math.min(pj.size, 300));
+fs.readSync(fd, buf, 0, buf.length, off);
+console.log('content head:', JSON.stringify(buf.toString('utf8').slice(0, 250)));
